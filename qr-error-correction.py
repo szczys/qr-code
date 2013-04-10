@@ -111,10 +111,3 @@ def generateCodewords(wordTotal,messageWords):
         if (item%2 == 0):
             codeWords.append(firstTerm[item])
     return codeWords
-        
-    
-    
-
-
-    
-generateCodewords(10,testMessage)
