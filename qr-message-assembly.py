@@ -113,7 +113,9 @@ def padCodeWords(messageString,qrVersion,errorLevel):
 
     return paddedCodewords
 
-def getFormatting(errAndMaskString):
+def getFormatting(errorLevel,maskType):
+    errorLevelKey = {'L':'01','M':'00','Q':'11','H':'10'}
+    errAndMaskString = errorLevelKey[errorLevel] + intToBinString(maskType,3)
     bchCalc = int(errAndMaskString,2)<<10 #add ten zeros to begin calculation
     polynomial = 0b10100110111
 

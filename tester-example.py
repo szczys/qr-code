@@ -45,7 +45,7 @@ grid = fillListFromDict(getEmptyGrid(qrVersion),messageDict)
 grid = fillListFromDict(grid,tabooDict)
 
 '''TODO: Add format data'''
-grid = fillListFromDict(grid,getFormatDict(1,getFormatting('00011')))
+grid = fillListFromDict(grid,getFormatDict(1,getFormatting('M',3)))
 
 #mask data
 grid = applyMask(grid,tabooDict,3)
