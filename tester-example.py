@@ -40,10 +40,18 @@ messageDict = fillQrCode(qrVersion,tabooDict,dataString)
 
 #Generate a grid and fill it
 grid = fillListFromDict(getEmptyGrid(qrVersion),messageDict)
-'''TODO: Add all of the tabooDict bits'''
+
+#Add all of the tabooDict bits
+grid = fillListFromDict(grid,tabooDict)
+
 '''TODO: Add format data'''
-'''TODO: mask data'''
+grid = fillListFromDict(grid,getFormatDict(1,'110100101101101'))
+
+#mask data
+grid = applyMask(grid,tabooDict,3)
+
 '''TODO: autodiscriminate'''
+
 '''TODO: add verion data'''
 
 #make the tag
