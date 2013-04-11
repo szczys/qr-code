@@ -51,14 +51,23 @@ def intToBinString(num,digitLength):
     #the ord() function can be used to convert a char to its int value
     return '0'*(digitLength-len(bin(num)[2:])) + bin(num)[2:]
 
-def makeAlphaNumMessage(inMessage):
+def makeAlphaNumMessage(inMessage,qrVersion):
     alphaNumSet = ('0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z',' ','$','%','*','+','-','.','/',':')
 
     messageString = '0010'
 
-    '''FIXME: number of bits used in length should depend on version and error correction level'''
+    alphaNumCharCountDict = {
+        9:(1,2,3,4,5,6,7,8,9),
+        11:(10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26),
+        13:(27,28,29,30,31,32,33,34,35,36,37,38,39,40)
+        }
+    for key in alphaNumCharCountDict:
+        if qrVersion in alphaNumCharCountDict[key]:
+            binCountLen = key
+
+    print "binCountLen: ",binCountLen
     binCount = bin(len(inMessage))
-    paddedCount = '0'*(9-len(binCount[2:])) + binCount[2:]
+    paddedCount = '0'*(binCountLen-len(binCount[2:])) + binCount[2:]
     messageString += paddedCount
                        
     #check to make sure it's alpha-numeric only:
@@ -86,6 +95,8 @@ def makeAlphaNumMessage(inMessage):
                 binCode = '0'*(11-len(bin(calcCode)[2:])) + bin(calcCode)[2:]
                 print binCode
                 messageString += binCode
+    '''FIXME: terminator shouldn't be added if there's not room for it'''
+    messageString += '0000'
     return messageString
 
 def padMessageString(messageString):
@@ -101,6 +112,7 @@ def padCodeWords(messageString,qrVersion,errorLevel):
         'H':(0,9,16,26,36,46,60,66,86)
         }
     wordLimit = codeWordLength[errorLevel][qrVersion]
+    print "wordLimit = ",wordLimit
     if (len(messageString)/8 > wordLimit):
         raise Exception("Message codewords too long for this Version/Error Correction level")
 
@@ -438,8 +450,9 @@ def getFormatDict(qrVersion,formattingString=None):
     8,size-7 through 8,size-1
     '''
     size = getGridSize(qrVersion)
-    primary = ((8,0),(8,1),(8,2),(8,3),(8,4),(8,5),(8,7),(8,8),(7,8),(5,8),(4,8),(3,8),(2,8),(1,8),(0,8))
-    secondary = ((size-1,8),(size-2,8),(size-3,8),(size-4,8),(size-5,8),(size-6,8),(size-7,8),(size-8,8),(8,size-7),(8,size-6),(8,size-5),(8,size-4),(8,size-3),(8,size-2),(8,size-1))
+    primary = ((0, 8), (1, 8), (2, 8), (3, 8), (4, 8), (5, 8), (7, 8), (8, 8), (8, 7), (8, 5), (8, 4), (8, 3), (8, 2), (8, 1), (8, 0))
+    secondary = ((8,size-1),(8,size-2),(8,size-3),(8,size-4),(8,size-5),(8,size-6),(8,size-7),(size-8,8),(size-7,8),(size-6,8),(size-5,8),(size-4,8),(size-3,8),(size-2,8),(size-1,8))
+    
 
     #fill list with zeros if None was passed as an argument
     if (formattingString == None):
