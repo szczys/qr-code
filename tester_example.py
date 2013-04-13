@@ -1,13 +1,18 @@
 #This is the 1-M test from ISO/IEC 18004:2000(E) page 84
+from qrSymbolCapacity import SymbolInfo
 from qr_message_assembly import makeNumericMessage, padMessageString, \
     padCodeWords, generateCodewords, intToBinString, getFinderDict, getAlignmentDict, \
     getSeparatorDict, getTimingDict, getFormatDict, getVersionDict, fillQrCode, \
     fillListFromDict, getEmptyGrid, getFormatting, applyMask, genQrImage
 
-
-message = '01234567'
+message = 'HELLO WORLD'
 qrVersion = 1
 errorLevel = 'M'
+
+#get new object based on our test message
+info = SymbolInfo(message,qrVersion,1)
+
+exit()
 
 #Start by converting data to a string of binary
 dataString = makeNumericMessage(message,qrVersion)

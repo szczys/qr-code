@@ -1,39 +1,6 @@
-import Image, ImageDraw, string
-import qrSymbolCapacity
+import Image, ImageDraw
 
-def whichCharSet(inMessage):
-    #find out which charSet should be used
-    charSetScoreboard = [
-        0,  #ECI - Not Implemented yet
-        1,  #Numeric
-        1,  #Alphanumeric
-        1,  #8-bit Byte
-        0,  #Kanji - Not Implemented yet
-        0,  #Structured Append - Not Implemented yet
-        0  #FNC1 - Not Implemented yet
-        ]
 
-    charSetListing = (
-        (),  # ECI - Not Implemented yet
-        (string.digits),  #Numeric
-        (string.digits + string.uppercase + ' $%*+-./:'),  #Alphanumeric
-        (string.punctuation.replace('//','') + string.digits + string.lowercase + string.uppercase
-         #'\xef\xbd\xa1', '\xef\xbd\xa2', '\xef\xbd\xa3', '\xef\xbd\xa4', '\xef\xbd\xa5', '\xef\xbd\xa6', '\xef\xbd\xa7', '\xef\xbd\xa8', '\xef\xbd\xa9', '\xef\xbd\xaa', '\xef\xbd\xab', '\xef\xbd\xac', '\xef\xbd\xad', '\xef\xbd\xae', '\xef\xbd\xaf', '\xef\xbd\xb0', '\xef\xbd\xb1', '\xef\xbd\xb2', '\xef\xbd\xb3', '\xef\xbd\xb4', '\xef\xbd\xb5', '\xef\xbd\xb6', '\xef\xbd\xb7', '\xef\xbd\xb8', '\xef\xbd\xb9', '\xef\xbd\xba', '\xef\xbd\xbb', '\xef\xbd\xbc', '\xef\xbd\xbd', '\xef\xbd\xbe', '\xef\xbd\xbf', '\xef\xbe\x80', '\xef\xbe\x81', '\xef\xbe\x82', '\xef\xbe\x83', '\xef\xbe\x84', '\xef\xbe\x85', '\xef\xbe\x86', '\xef\xbe\x87', '\xef\xbe\x88', '\xef\xbe\x89', '\xef\xbe\x8a', '\xef\xbe\x8b', '\xef\xbe\x8c', '\xef\xbe\x8d', '\xef\xbe\x8e', '\xef\xbe\x8f', '\xef\xbe\x90', '\xef\xbe\x91', '\xef\xbe\x92', '\xef\xbe\x93', '\xef\xbe\x94', '\xef\xbe\x95', '\xef\xbe\x96', '\xef\xbe\x97', '\xef\xbe\x98', '\xef\xbe\x99', '\xef\xbe\x9a', '\xef\xbe\x9b', '\xef\xbe\x9c', '\xef\xbe\x9d', '\xef\xbe\x9e', '\xef\xbe\x9f'
-         ),  # 8-bit Byte
-        (),  # Kanji - Not Implemented yet
-        (),  # Structured Append - Not Implemented yet
-        ()  # FNC1 - Not Implemented yet
-        )
-
-    for char in inMessage:
-        for i in range(len(charSetListing)):
-            if (char not in charSetListing[i]):
-                charSetScoreboard[i] = 0
-
-    for i in range(len(charSetScoreboard)):
-        if (charSetScoreboard[i] != 0):
-            return i
-    return None
 
 def whichQrVersion(charSetNum,charCount):
 
@@ -183,7 +150,6 @@ def getFormatting(errorLevel,maskType):
     fbin = (int(errAndMaskString,2)<<10) | bchCalc
     #Apply the string mask
     fbin = fbin ^ 0b101010000010010
-    formatList = [0]*15
 
     formatString = intToBinString(fbin,15)
 
@@ -548,10 +514,8 @@ def getVersionDict(qrVersion, versionString=None):
 
 def getEmptyGrid(qrVersion):
     size = getGridSize(qrVersion)
-    grid = []
-    row = [0]*size
-    for i in range(size):
-        grid.append(list(row))
+    grid = [[0]*size for _ in range(size)]
+    
     return grid
 
 def fillListFromDict(theList,theDict):
