@@ -14,7 +14,7 @@ dataString = makeAlphaNumMessage(message,qrVersion)
 print "preliminary dataString:",dataString
 
 #Pad that string to make it an even number of 8-bit words
-dataString = padMessageString(dataString)
+dataString = padBinMessage(dataString)
 
 #Pad the set of 8-bit words to fill the QR code's data word area
 dataString = padCodeWords(dataString,qrVersion,errorLevel)

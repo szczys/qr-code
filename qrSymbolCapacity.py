@@ -1,6 +1,8 @@
+import logging
 import string
+import sys
 
-debug = True
+logging.basicConfig(level=logging.DEBUG)
 
 class SymbolInfo:
     # ISO/IEC 18004:2000(E) page 28
@@ -58,7 +60,7 @@ class SymbolInfo:
         (('L', 2956, 23648, 7089, 4296, 2953, 1817), ('M', 2334, 18672, 5596, 3391, 2331, 1435), ('Q', 1666, 13328, 3993, 2420, 1663, 1024), ('H', 1276, 10208, 3057, 1852, 1273, 784))
         )
       
-    def __init__(self,inMessage,qrVersion=None,errLevel=None):      
+    def __init__(self, inMessage, qrVersion=None, errLevel=None):      
         self.inMessage = inMessage
         self.qrVersion = qrVersion
         self.errLevel = errLevel
@@ -68,71 +70,75 @@ class SymbolInfo:
         # correction. should this be parametric instead?
         if ((self.qrVersion == None) and (self.errLevel == None)):
             possibleSizes = self.getSizes(self.charSet, len(self.inMessage))
-            winner = len(possibleSizes)-1
-            for i in range(len(possibleSizes)-2,-1,-1):
+            winner = len(possibleSizes) - 1
+            for i in range(len(possibleSizes) - 2, -1, -1):
                 if possibleSizes[i] < possibleSizes[winner]:
                     winner = i
             self.qrVersion = possibleSizes[winner]
             self.errLevel = winner
                   
         if ((self.errLevel == None) and (self.qrVersion != None)):
-            #This should catch when qrLevel is specified but errLevel is not
+            # This should catch when qrLevel is specified but errLevel is not
             self.qrVersion = qrVersion
-            #dig through the table to find highest errLevel that will work
+            # dig through the table to find highest errLevel that will work
             self.errLevel = errLevel
             for i in range(4):
-                if (len(self.inMessage) <= self.capacityTable[self.qrVersion][i][self.charSet+2]):
+                if (len(self.inMessage) <= self.capacityTable[self.qrVersion][i][self.charSet + 2]):
                     self.errLevel = i
             
             if (self.errLevel == None):
                 raise ValueError("Specified QR Version can't fit this message using any error correction level") 
         
         if (self.qrVersion == None):
-            #This should catch when errLevel is specified but qrVersion is not
+            # This should catch when errLevel is specified but qrVersion is not
             self.errLevel = errLevel
-            print self.errLevel,self.qrVersion
             self.qrVersion = self.getSizes(self.charSet, len(self.inMessage))[self.errLevel]
             
-        #Sanity check the qrVersion and errLevel to ensure that they will work
-        if (self.capacityTable[self.qrVersion][self.errLevel][self.charSet+2] < len(self.inMessage)):
+        # Sanity check the qrVersion and errLevel to ensure that they will work
+        if (self.capacityTable[self.qrVersion][self.errLevel][self.charSet + 2] < len(self.inMessage)):
             raise ValueError("QR Version and Error Correction levels selected don't contain enough room for this message")
         
-        if (debug):
-            print "===debug===",__name__, "inMessage", self.inMessage
-            print "===debug===",__name__, "charSet", self.charSet
-            print "===debug===",__name__, "qrVersion", self.qrVersion
-            print "===debug===",__name__, "errLevel", self.errLevel
+        # Version and error correction level work, fill in the rest of the variables
+        self.dataCodewords = self.capacityTable[self.qrVersion][self.errLevel][1]
+        self.dataBits = self.capacityTable[self.qrVersion][self.errLevel][2]
+        
+        logging.debug("%s:%s:inMessage: %s", self.__class__.__name__, sys._getframe().f_code.co_name, self.inMessage)
+        logging.debug("%s:%s:charSet: %s", self.__class__.__name__, sys._getframe().f_code.co_name, self.charSet)
+        logging.debug("%s:%s:qrVersion: %s", self.__class__.__name__, sys._getframe().f_code.co_name, self.qrVersion)
+        logging.debug("%s:%s:errLevel: %s", self.__class__.__name__, sys._getframe().f_code.co_name, self.errLevel)
+        logging.debug("%s:%s:dataCodewords: %s", self.__class__.__name__, sys._getframe().f_code.co_name, self.dataCodewords)
+        logging.debug("%s:%s:dataBits: %s", self.__class__.__name__, sys._getframe().f_code.co_name, self.dataBits)
 
-    def getSizes(self,charSet,charCount):
+    def getSizes(self, charSet, charCount):
         results = []
         symbolSize = 1
-        while (symbolSize<=40):
+        while (symbolSize <= 40):
             for errorLevel in range(4):
-                if (len(results) < errorLevel+1):
-                    if (charCount <= self.capacityTable[symbolSize][errorLevel][charSet+2]):
+                if (len(results) < errorLevel + 1):
+                    if (charCount <= self.capacityTable[symbolSize][errorLevel][charSet + 2]):
                         results.append(symbolSize)
             symbolSize += 1
             
         return results
         
     def whichCharSet(self):
-        #find out which charSet should be used
+        # find out which charSet should be used
         charSetScoreboard = [
-            0,  #ECI - Not Implemented yet
-            1,  #Numeric
-            1,  #Alphanumeric
-            1,  #8-bit Byte
-            0,  #Kanji - Not Implemented yet
-            0,  #Structured Append - Not Implemented yet
-            0  #FNC1 - Not Implemented yet
+            0,  # ECI - Not Implemented yet
+            1,  # Numeric
+            1,  # Alphanumeric
+            1,  # 8-bit Byte
+            0,  # Kanji - Not Implemented yet
+            0,  # Structured Append - Not Implemented yet
+            0  # FNC1 - Not Implemented yet
             ]
     
         charSetListing = (
             (),  # ECI - Not Implemented yet
-            (string.digits),  #Numeric
-            (string.digits + string.uppercase + ' $%*+-./:'),  #Alphanumeric
-            (string.punctuation.replace('\\','') + string.digits + string.lowercase + string.uppercase + ' '
-             #'\xef\xbd\xa1', '\xef\xbd\xa2', '\xef\xbd\xa3', '\xef\xbd\xa4', '\xef\xbd\xa5', '\xef\xbd\xa6', '\xef\xbd\xa7', '\xef\xbd\xa8', '\xef\xbd\xa9', '\xef\xbd\xaa', '\xef\xbd\xab', '\xef\xbd\xac', '\xef\xbd\xad', '\xef\xbd\xae', '\xef\xbd\xaf', '\xef\xbd\xb0', '\xef\xbd\xb1', '\xef\xbd\xb2', '\xef\xbd\xb3', '\xef\xbd\xb4', '\xef\xbd\xb5', '\xef\xbd\xb6', '\xef\xbd\xb7', '\xef\xbd\xb8', '\xef\xbd\xb9', '\xef\xbd\xba', '\xef\xbd\xbb', '\xef\xbd\xbc', '\xef\xbd\xbd', '\xef\xbd\xbe', '\xef\xbd\xbf', '\xef\xbe\x80', '\xef\xbe\x81', '\xef\xbe\x82', '\xef\xbe\x83', '\xef\xbe\x84', '\xef\xbe\x85', '\xef\xbe\x86', '\xef\xbe\x87', '\xef\xbe\x88', '\xef\xbe\x89', '\xef\xbe\x8a', '\xef\xbe\x8b', '\xef\xbe\x8c', '\xef\xbe\x8d', '\xef\xbe\x8e', '\xef\xbe\x8f', '\xef\xbe\x90', '\xef\xbe\x91', '\xef\xbe\x92', '\xef\xbe\x93', '\xef\xbe\x94', '\xef\xbe\x95', '\xef\xbe\x96', '\xef\xbe\x97', '\xef\xbe\x98', '\xef\xbe\x99', '\xef\xbe\x9a', '\xef\xbe\x9b', '\xef\xbe\x9c', '\xef\xbe\x9d', '\xef\xbe\x9e', '\xef\xbe\x9f'
+            (string.digits),  # Numeric
+            (string.digits + string.uppercase + ' $%*+-./:'),  # Alphanumeric
+            (string.punctuation.replace('\\', '') + string.digits + string.lowercase + string.uppercase + ' '
+             # '\xef\xbd\xa1', '\xef\xbd\xa2', '\xef\xbd\xa3', '\xef\xbd\xa4', '\xef\xbd\xa5', '\xef\xbd\xa6', '\xef\xbd\xa7', '\xef\xbd\xa8', '\xef\xbd\xa9', '\xef\xbd\xaa', '\xef\xbd\xab', '\xef\xbd\xac', '\xef\xbd\xad', '\xef\xbd\xae', '\xef\xbd\xaf', '\xef\xbd\xb0', '\xef\xbd\xb1', '\xef\xbd\xb2', '\xef\xbd\xb3', '\xef\xbd\xb4', '\xef\xbd\xb5', '\xef\xbd\xb6', '\xef\xbd\xb7', '\xef\xbd\xb8', '\xef\xbd\xb9', '\xef\xbd\xba', '\xef\xbd\xbb', '\xef\xbd\xbc', '\xef\xbd\xbd', '\xef\xbd\xbe', '\xef\xbd\xbf', '\xef\xbe\x80', '\xef\xbe\x81', '\xef\xbe\x82', '\xef\xbe\x83', '\xef\xbe\x84', '\xef\xbe\x85', '\xef\xbe\x86', '\xef\xbe\x87', '\xef\xbe\x88', '\xef\xbe\x89', '\xef\xbe\x8a', '\xef\xbe\x8b', '\xef\xbe\x8c', '\xef\xbe\x8d', '\xef\xbe\x8e', '\xef\xbe\x8f', '\xef\xbe\x90', '\xef\xbe\x91', '\xef\xbe\x92', '\xef\xbe\x93', '\xef\xbe\x94', '\xef\xbe\x95', '\xef\xbe\x96', '\xef\xbe\x97', '\xef\xbe\x98', '\xef\xbe\x99', '\xef\xbe\x9a', '\xef\xbe\x9b', '\xef\xbe\x9c', '\xef\xbe\x9d', '\xef\xbe\x9e', '\xef\xbe\x9f'
              ),  # 8-bit Byte
             (),  # Kanji - Not Implemented yet
             (),  # Structured Append - Not Implemented yet
@@ -150,3 +156,136 @@ class SymbolInfo:
         
         raise ValueError("Message contains invalid characters")
         return
+
+class BinaryMessage:
+    def __init__(self, symInf):
+        # symInf must be a SymbolInfo object
+        self.infoSource = symInf
+               
+        if (self.infoSource.charSet == 1):  # Numeric
+            self.binMessage = self.makeNumericMessage()
+        if (self.infoSource.charSet == 2):  # Alphanumeric
+            self.binMessage = self.makeAlphaNumMessage()
+        if (self.infoSource.charSet == 3):  # 8-bit
+            logging.error("Not Implemented")
+            exit(1)
+        if (self.infoSource.charSet == 4):  # Kanji
+            logging.error("Not Implemented")
+            exit(1)
+        
+        self.padBinMessage()
+        self.padDataWords()
+       
+                
+
+            
+
+    def makeNumericMessage(self):
+        # hardcode Numeric message mode indicator
+        messageString = '0001'
+    
+        # append character count:
+        length = len(self.infoSource.inMessage)
+        binLength = self.intToBinString(length, self.getCountLength())
+        messageString += binLength
+    
+        i = 0
+        while(i < length):
+            if (i + 2 < length):
+                curSet = int(self.infoSource.inMessage[i] + self.infoSource.inMessage[i + 1] + self.infoSource.inMessage[i + 2])
+                messageString += self.intToBinString(curSet, 10)
+                i += 3
+            else:
+                if (i + 1 < length):
+                    curSet = int(self.infoSource.inMessage[i] + self.infoSource.inMessage[i + 1])
+                    messageString += self.intToBinString(curSet, 7)
+                    i += 2
+                else:
+                    curSet = int(self.infoSource.inMessage[i])
+                    messageString += self.intToBinString(curSet, 4)
+                    i += 1
+    
+        return messageString
+    
+    def make8bitMessage(self):
+        # hardcode 8-bit byte encoding:
+        messageString = '0100'
+        # append character count:
+        messageString += self.intToBinString(len(self.infoSource.inMessage), self.getCountLength())
+    
+        for char in self.infoSource.inMessage:
+            messageString += self.intToBinString(ord(char), 8)
+    
+        return messageString
+
+    def makeAlphaNumMessage(self):
+        alphaNumSet = ('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', ' ', '$', '%', '*', '+', '-', '.', '/', ':')
+    
+        messageString = '0010'
+        messageString += self.intToBinString(len(self.infoSource.inMessage), self.getCountLength())
+            
+        # check to make sure it's alpha-numeric only:
+        for char in self.infoSource.inMessage:
+            # check to make sure it's alpha-numeric only:
+            if not (char in alphaNumSet):
+                raise ValueError(char)
+    
+        for index in range(len(self.infoSource.inMessage)):
+            # only operate on the even indices:
+            if (index % 2 == 0):
+                # if this is the last number simply append it
+                if (index == len(self.infoSource.inMessage) - 1):
+                    curCode = alphaNumSet.index(self.infoSource.inMessage[index])
+                    binCode = '0' * (6 - len(bin(curCode)[2:])) + bin(curCode)[2:]
+                    messageString += binCode
+                else:
+                    curCode = alphaNumSet.index(self.infoSource.inMessage[index])
+                    nextCode = alphaNumSet.index(self.infoSource.inMessage[index + 1])
+                    calcCode = (45 * curCode) + nextCode
+                    binCode = '0' * (11 - len(bin(calcCode)[2:])) + bin(calcCode)[2:]
+                    messageString += binCode
+        return messageString
+    
+    def intToBinString(self, num, digitLength):
+        # converts an integer to an eight bit binary number returned as a string
+        # the ord() function can be used to convert a char to its int value
+        return '0' * (digitLength - len(bin(num)[2:])) + bin(num)[2:]
+    
+    def getCountLength(self):
+        charCountBitLength = (
+                              (10, 9, 8, 8),
+                              (12, 11, 16, 10),
+                              (14, 13, 16, 12)
+                              )
+        if (0 < self.infoSource.qrVersion < 10):
+            return  charCountBitLength[0][self.infoSource.charSet - 1]
+        elif(10 <= self.infoSource.qrVersion <= 27):
+            return  charCountBitLength[1][self.infoSource.charSet - 1]
+        elif(28 <= self.infoSource.qrVersion <= 40):
+            return  charCountBitLength[2][self.infoSource.charSet - 1]
+        else:
+            raise ValueError("Bit length of message count cannot be calculated for some reason.")
+        
+    def padBinMessage(self):
+        remainingBits = self.infoSource.dataBits - len(self.binMessage)
+        if (remainingBits < 0):
+            raise ValueError("Somehow our binary message is longer than the limit")
+        elif (remainingBits > 0):
+            if (remainingBits <= 4):
+                self.binMessage += '0' * remainingBits
+            else:
+                # add the terminator
+                self.binMessage += '0000'
+                self.binMessage += '0' * (8 - (len(self.binMessage) % 8))
+        logging.debug("%s:%s:binMessage: %s", self.__class__.__name__, sys._getframe().f_code.co_name, self.binMessage)
+                
+    def padDataWords(self):
+        # padding codewords (alternating): 11101100 and 00010001
+        for i in range(self.infoSource.dataCodewords - (len(self.binMessage) / 8)):
+            if (i % 2):
+                self.binMessage += '00010001'
+            else: self.binMessage += '11101100'
+        logging.debug("%s:%s:binMessage: %s", self.__class__.__name__, sys._getframe().f_code.co_name, self.binMessage)
+
+class ErrorCodewords():
+    pass

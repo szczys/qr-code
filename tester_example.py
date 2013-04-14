@@ -1,6 +1,6 @@
 #This is the 1-M test from ISO/IEC 18004:2000(E) page 84
 from qrSymbolCapacity import SymbolInfo
-from qr_message_assembly import makeNumericMessage, padMessageString, \
+from qr_message_assembly import makeNumericMessage, padBinMessage, \
     padCodeWords, generateCodewords, intToBinString, getFinderDict, getAlignmentDict, \
     getSeparatorDict, getTimingDict, getFormatDict, getVersionDict, fillQrCode, \
     fillListFromDict, getEmptyGrid, getFormatting, applyMask, genQrImage
@@ -18,7 +18,7 @@ exit()
 dataString = makeNumericMessage(message,qrVersion)
 
 #Pad that string to make it an even number of 8-bit words
-dataString = padMessageString(dataString)
+dataString = padBinMessage(dataString)
 
 #Pad the set of 8-bit words to fill the QR code's data word area
 dataString = padCodeWords(dataString,qrVersion,errorLevel)
