@@ -1,4 +1,5 @@
-from qrSymbolCapacity import BinaryMessage, SymbolInfo, ErrorCodewords
+from qrSymbolCapacity import BinaryMessage, SymbolInfo, ErrorCodewords, \
+    SymbolDict, SymbolGenerator
 import unittest
 
 class TestQr(unittest.TestCase):
@@ -18,9 +19,14 @@ class TestQr(unittest.TestCase):
         
         error_correction = ErrorCodewords(symInf,binary_message)
         expectedMessageList = [16, 32, 12, 86, 97, 128, 236, 17, 236, 17, 236, 17, 236, 17, 236, 17]
-        self.assertEqual(error_correction.messageWords,expectedMessageList,"Messsageword list is wrong")
+        self.assertEqual(error_correction.messageWords,expectedMessageList,"Messageword list is wrong")
         expectedCodeList = [165, 36, 212, 193, 237, 54, 199, 135, 44, 85]
         self.assertEqual(error_correction.codewords,expectedCodeList,"Codeword list is wrong")
         expectedBinCodeString = '10100101001001001101010011000001111011010011011011000111100001110010110001010101'
         self.assertEqual(error_correction.binCodewords,expectedBinCodeString,"BinCodeString wrong")
+        
+        symbol_dict = SymbolDict(symInf,binary_message.binMessage,error_correction.binCodewords)
+        
+        symbol_generator = SymbolGenerator(symInf, binary_message, error_correction, symbol_dict)
+        
         
