@@ -171,8 +171,7 @@ class BinaryMessage:
         if (self.infoSource.charSet == 2):  # Alphanumeric
             self.binMessage = self.makeAlphaNumMessage()
         if (self.infoSource.charSet == 3):  # 8-bit
-            logging.error("Not Implemented")
-            exit(1)
+            self.binMessage = self.make8bitMessage()
         if (self.infoSource.charSet == 4):  # Kanji
             logging.error("Not Implemented")
             exit(1)
@@ -630,7 +629,7 @@ class SymbolDict():
                         curPattern[x, y] = thisPixel
     
                         # make sure not to add this pattern if it overlaps other features:
-                        if ((x, y) in self.tabooDict.keys()):
+                        if ((x, y) in self.taboo_dict.keys()):
                             patternOutOfBounds = True
     
                 if not patternOutOfBounds:
