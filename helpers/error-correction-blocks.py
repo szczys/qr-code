@@ -1,4 +1,8 @@
-L 7 1 (26,19,2)
+#Table from ISO/IEC 18004:2000(E) pages 35-44
+# this script will format the copy/paste data for use in a python class
+
+
+x='''L 7 1 (26,19,2)
 M 10 1 (26,16,4)
 Q 13 1 (26,13,6)
 H 17 1 (26,9,8)
@@ -270,7 +274,7 @@ Q 1860 48 (54,24,15)
         14 (55,25,15)
 H 2220 42 (45,15,15)
         32 (46,16,15)
-L 72020 (147,117,15)
+L 720 20 (147,117,15)
       4 (148,118,15)
 M 1316 40 (75,47,14)
         7 (76,48,14)
@@ -285,5 +289,74 @@ M 1372 18 (75,47,14)
 Q 2040 34 (54,24,15)
         34 (55,25,15)
 H 2430 20 (45,15,15)
-        61 (46,16,15)
+        61 (46,16,15)'''
 
+#Goals is to have a list with this hierarcy:
+#   -QR Version
+#       -Number of correction words for this error correction level (0:L,1:M,2:Q,3:H)
+#           -List member for each data block
+#               -count for this data block
+#               -data reference for this data block
+
+def stringListFix(stringList):
+    stringNums = stringList.replace('(','').replace(')','').split(',')
+    outList = (int(stringNums[0]),int(stringNums[1]),int(stringNums[2]))
+    return outList
+
+#Separate by line breaks
+x = x.split('\n')
+
+#Separate by QR Version
+organizedList = []
+nextItem = None
+for item in x:
+    if item[0] == "L":
+        organizedList.append(nextItem)
+        nextItem = []
+        nextItem.append(item)
+    else:
+        nextItem.append(item)
+organizedList.append(nextItem)
+        
+#Separate by error correction level
+errLevList = [None]
+firstItem = True
+nextItem = []
+for item in organizedList:
+    if item==None: continue
+    thisItem = []
+    #Look through each tidbit in this version
+    for member in item:
+        curMember = member.strip().split(' ')
+        print curMember
+        #if this tidbit starts with a letter it should be a new list
+        if curMember[0] in string.uppercase:
+            if curMember[0] != 'L':
+                thisItem.append(subMember)
+
+            subMember = []
+            subMember.append(int(curMember[1]))
+            subMember.append((int(curMember[2]),stringListFix(curMember[3])))
+        else:
+            subMember.append((int(curMember[0]),stringListFix(curMember[1])))
+    thisItem.append(subMember)
+    errLevList.append(thisItem)
+            
+                
+        
+    '''
+        if member[0] == 'L':
+            if not firstItem:
+                errLevList.append(nextItem)
+           '''     
+
+
+
+
+
+
+
+
+
+
+    
