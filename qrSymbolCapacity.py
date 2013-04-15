@@ -812,7 +812,7 @@ class MaskSymbol():
         self.data_list = theList
         
         #FIXME: This class should test out ever mask and find the best one. Right now it's just hardcoded here
-        self.best_mask = 3
+        self.best_mask = 0
     
         self.masked_grid = self.applyMask(self.data_list, self.taboo_dict, self.best_mask)
         

@@ -5,17 +5,12 @@ import unittest
 class TestQr(unittest.TestCase):
     
     def testNumeric(self):
+        '''
         symInf = SymbolInfo('01234567',1,1)
         binary_message = BinaryMessage(symInf)
         expectedString = '00010000001000000000110001010110011000011000000011101100000100011110110000010001111011000001000111101100000100011110110000010001'
         self.assertEqual(binary_message.binMessage, expectedString, "Binary version doesn't match text message input")
 
-        '''
-        symInf = SymbolInfo('HELLO WORLD')
-        binary_message = BinaryMessage(symInf)
-        expectedString = '00100000010110110000101101111000110100010111001011011100010011010100001101000000111011000001000111101100'
-        self.assertEqual(binary_message.binMessage, expectedString, "Message mismatch")
-        '''
         
         error_correction = ErrorCodewords(symInf,binary_message)
         expectedMessageList = [16, 32, 12, 86, 97, 128, 236, 17, 236, 17, 236, 17, 236, 17, 236, 17]
@@ -28,5 +23,15 @@ class TestQr(unittest.TestCase):
         symbol_dict = SymbolDict(symInf,binary_message.binMessage,error_correction.binCodewords)
         
         symbol_generator = SymbolGenerator(symInf, binary_message, error_correction, symbol_dict)
+        '''
         
+        
+        symInf = SymbolInfo('HELLO WORLD',1,2)
+        binary_message = BinaryMessage(symInf)
+        #expectedString = '00100000010110110000101101111000110100010111001011011100010011010100001101000000111011000001000111101100'
+        #self.assertEqual(binary_message.binMessage, expectedString, "Message mismatch")
+        
+        error_codewords = ErrorCodewords(symInf,binary_message)
+        symbol_dict = SymbolDict(symInf, binary_message.binMessage, error_codewords.binCodewords)
+        SymbolGenerator(symInf, binary_message, error_codewords, symbol_dict)
         
