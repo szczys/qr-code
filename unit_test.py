@@ -27,11 +27,10 @@ class TestQr(unittest.TestCase):
         
         
         symInf = SymbolInfo('HELLO WORLD',1,2)
-        binary_message = BinaryMessage(symInf)
-        #expectedString = '00100000010110110000101101111000110100010111001011011100010011010100001101000000111011000001000111101100'
-        #self.assertEqual(binary_message.binMessage, expectedString, "Message mismatch")
-        
+        binary_message = BinaryMessage(symInf)      
         error_codewords = ErrorCodewords(symInf,binary_message)
+        expectedInt = 13
+        self.assertEqual(error_codewords.codewordCount, expectedInt)
         symbol_dict = SymbolDict(symInf, binary_message.binMessage, error_codewords.binCodewords)
         SymbolGenerator(symInf, binary_message, error_codewords, symbol_dict)
         

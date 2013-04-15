@@ -341,15 +341,9 @@ for item in organizedList:
             subMember.append((int(curMember[0]),stringListFix(curMember[1])))
     thisItem.append(subMember)
     errLevList.append(thisItem)
-            
-                
-        
-    '''
-        if member[0] == 'L':
-            if not firstItem:
-                errLevList.append(nextItem)
-           '''     
 
+for item in errLevList:
+    print str(item).replace('[','(').replace(']',')')
 
 
 
