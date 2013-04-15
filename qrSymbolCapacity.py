@@ -1,3 +1,5 @@
+import Image
+import ImageDraw
 import logging
 import string
 import sys
@@ -439,21 +441,21 @@ class ErrorCodewords():
         logging.debug("%s:%s:codeWords: %s", self.__class__.__name__, sys._getframe().f_code.co_name, codeWords)
         return codeWords
     
-    def binStringToIntList(self,inString):
+    def binStringToIntList(self, inString):
         intList = []
-        for i in range(len(inString)/8):
-            intList.append(int(inString[(i*8):(i*8)+8],2))
+        for i in range(len(inString) / 8):
+            intList.append(int(inString[(i * 8):(i * 8) + 8], 2))
         logging.debug("%s:%s:intList: %s", self.__class__.__name__, sys._getframe().f_code.co_name, intList)
         return intList
     
-    def intListToBinString(self,inList):
+    def intListToBinString(self, inList):
         binString = ''
         for i in inList:
-            binString += self.binMessageSource.intToBinString(i,8)
+            binString += self.binMessageSource.intToBinString(i, 8)
         return binString
 
 class SymbolDict():
-    def __init__(self,symInf,messageString,codewordString):
+    def __init__(self, symInf, messageString, codewordString):
         # FIXME: messageString and codewordString may have to be passed differently to accommodate interleaved blocks
         self.infoSource = symInf
         
@@ -471,7 +473,7 @@ class SymbolDict():
         self.version_dict = self.getVersionDict()
         self.taboo_dict.update(self.version_dict)
         
-        self.message_dict = self.getMessageDict(messageString+codewordString)
+        self.message_dict = self.getMessageDict(messageString + codewordString)
                 
     def getFinderDict(self):
         finderDict = {}
@@ -669,7 +671,7 @@ class SymbolDict():
             versionDict[lower[0] + x2offset, lower[1] + y2offset] = int(versionString[i])
         return versionDict
 
-    def getMessageDict(self,messageString):
+    def getMessageDict(self, messageString):
         # use column index based on mod 2 for ever other row
         # start on bottom row
         # use direction indicator for up or down
@@ -705,24 +707,59 @@ class SymbolDict():
     
             direction *= -1  # multiply direction by -1 to flip between 1 and -1
             y += direction
+
+    def getFormatting(self, maskType):
+        #NOTE: I've always considered error levels to come in this order:
+        #        L,M,Q,H. But their binary representaiton is:
+        #        'L':'01', 'M':'00', 'Q':'11', 'H':'10'
+        #    I will account for that here:
+        errorLevelKey = ('01','00','11','10')
+        errAndMaskString = errorLevelKey[self.infoSource.errLevel] + self.intToBinString(maskType, 3)
+        bchCalc = int(errAndMaskString, 2) << 10  # add ten zeros to begin calculation
+        polynomial = 0b10100110111
+    
+        while (len(bin(bchCalc)) - 2 >= 11):
+            bchLen = len(bin(bchCalc)) - 2
+    
+            padding = bchLen - (len(bin(polynomial)) - 2)
+            bchCalc = bchCalc ^ (polynomial << padding)
+    
+        # Combine formatting bits with error correcting bits
+        fbin = (int(errAndMaskString, 2) << 10) | bchCalc
+        # Apply the string mask
+        fbin = fbin ^ 0b101010000010010
+    
+        formatString = self.intToBinString(fbin, 15)
+    
+        return formatString
+
+    def intToBinString(self, num, digitLength):
+        # converts an integer to an eight bit binary number returned as a string
+        # the ord() function can be used to convert a char to its int value
+        return '0' * (digitLength - len(bin(num)[2:])) + bin(num)[2:]
     
 class SymbolGenerator():
-    def __init__(self,symInf,binMess,errCw,symDict):
+    def __init__(self, symInf, binMess, errCw, symDict):
         self.infoSource = symInf
         self.binMessageSource = binMess
         self.errorCodewordSource = errCw
         self.symbolDictSource = symDict
         
-        #generate a list of 0 representing the QR symbol
+        # generate a list of 0 representing the QR symbol
         self.qr_grid = self.getEmptyGrid()
-        #fill the newly generated code
+        # fill the newly generated code
         self.qr_grid = self.fillListFromDict(self.qr_grid, self.symbolDictSource.taboo_dict)
         self.qr_grid = self.fillListFromDict(self.qr_grid, self.symbolDictSource.message_dict)
         
-        # FIXME: Need to add mask scoring
+        masked = MaskSymbol(self.symbolDictSource.taboo_dict,self.qr_grid)
+        self.masked_qr_grid = masked.masked_grid
         
+        #Get format information (this should be fun to figure out)
+        format_dict = self.symbolDictSource.getFormatDict(self.symbolDictSource.getFormatting(masked.best_mask))
+        self.masked_qr_grid = self.fillListFromDict(self.masked_qr_grid, format_dict)
         
-        
+        self.genQrImage(self.masked_qr_grid)
+   
     def getEmptyGrid(self):
         size = self.infoSource.gridSize
         grid = [[0] * size for _ in range(size)]
@@ -732,3 +769,85 @@ class SymbolGenerator():
         for key in theDict.keys():
             theList[key[1]][key[0]] = theDict[key]
         return theList
+    
+    def genQrImage(self, qrData):
+    
+        #FIXME: These settings probably shouldn't be hardcoded
+        out = '/home/mike/Desktop/qr_gen_test.png'
+        size = 2
+        bgcolor = 0xFFFFFF
+        fgcolor = 0x000000
+        
+        
+        quiet_zone_modules = 4  # required quiet zone pixels around code
+        offset = quiet_zone_modules * size
+    
+        image = Image.new("RGB", (size * (len(qrData) + (quiet_zone_modules * 2)), size * (len(qrData) + (quiet_zone_modules * 2))), bgcolor)
+        draw = ImageDraw.Draw(image)
+    
+        for y in range(len(qrData)):
+            for x in range(len(qrData)):
+                if qrData[y][x]:
+                    # draw foreground pixel
+                    x1 = (x * size) + offset
+                    y1 = (y * size) + offset
+                    x2 = (x * size) + offset + size - 1
+                    y2 = (y * size) + offset + size - 1
+                    # print x1,y1,x2,y2
+                    draw.rectangle((x1, y1, x2, y2), fgcolor)
+                '''
+                else:
+                    #draw background pixel
+                    #draw.rectangle((x*size,y*size,(x*size)+size,(y*size)+size),bgcolor)
+                    draw.rectangle(((x+quiet_zone_modules)*size,(y+quiet_zone_modules)*size,((x+quiet_zone_modules)*size)+size,((y+quiet_zone_modules)*size)+size),bgcolor)
+                '''
+    
+        del draw
+        image.save(out, 'PNG')
+    
+    
+class MaskSymbol():
+    def __init__(self, tabooDict, theList):
+        self.taboo_dict = tabooDict
+        self.data_list = theList
+        
+        #FIXME: This class should test out ever mask and find the best one. Right now it's just hardcoded here
+        self.best_mask = 3
+    
+        self.masked_grid = self.applyMask(self.data_list, self.taboo_dict, self.best_mask)
+        
+    def applyMask(self, qrList, tabooDict, maskVersion):
+        maskedList = list(qrList)
+        for x in range(len(maskedList[0])):
+            for y in range(len(maskedList)):
+                if ((x, y) not in tabooDict.keys()):
+                    maskedList[y][x] = self.calcMask(maskVersion, x, y, maskedList[y][x])
+        return maskedList
+    
+    def calcMask(self, mask, x, y, value):
+        if (mask == 0):
+            if ((x + y) % 2): return value
+            else: return (value ^ 1)
+        elif (mask == 1):
+            if (y % 2): return value
+            else: return (value ^ 1)
+        elif (mask == 2):
+            if (x % 3): return value
+            else: return (value ^ 1)
+        elif (mask == 3):
+            if ((x + y) % 3): return value
+            else: return (value ^ 1)
+        elif (mask == 4):
+            if (((y / 2) + (x / 3)) % 2): return value
+            else: return (value ^ 1)
+        elif (mask == 5):
+            if (((x * y) % 2) + ((x * y) % 3)): return value
+            else: return (value ^ 1)
+        elif (mask == 6):
+            if ((((x * y) % 2) + ((x * y) % 3)) % 2): return value
+            else: return (value ^ 1)
+        elif (mask == 7):
+            if ((((x * y) % 3) + ((x + y) % 2)) % 2): return value
+            else: return (value ^ 1)
+        else:
+            raise Exception("Mask type value is invalide (needs to between 0 and 7)")

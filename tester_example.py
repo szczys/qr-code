@@ -1,9 +1,9 @@
 #This is the 1-M test from ISO/IEC 18004:2000(E) page 84
-from qrSymbolCapacity import SymbolInfo
-from qr_message_assembly import makeNumericMessage, padBinMessage, \
-    padCodeWords, generateCodewords, intToBinString, getFinderDict, getAlignmentDict, \
-    getSeparatorDict, getTimingDict, getFormatDict, getVersionDict, fillQrCode, \
-    fillListFromDict, getEmptyGrid, getFormatting, applyMask, genQrImage
+
+
+#FIXME:    DEPRECATED: This file won't work since the code was formatted into classes.
+#FIXME:                    It remains here for reference only but should be removed.
+
 
 message = 'HELLO WORLD'
 qrVersion = 1
