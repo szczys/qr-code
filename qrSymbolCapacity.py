@@ -177,11 +177,7 @@ class BinaryMessage:
             exit(1)
         
         self.padBinMessage()
-        self.padDataWords()
-       
-                
-
-            
+        self.padDataWords()           
 
     def makeNumericMessage(self):
         # hardcode Numeric message mode indicator
@@ -364,7 +360,7 @@ class ErrorCodewords():
         68: [0, 68, 247, 67, 159, 66, 223, 65, 33, 64, 224, 63, 93, 62, 77, 61, 70, 60, 90, 59, 160, 58, 32, 57, 254, 56, 43, 55, 150, 54, 84, 53, 101, 52, 190, 51, 205, 50, 133, 49, 52, 48, 60, 47, 202, 46, 165, 45, 220, 44, 203, 43, 151, 42, 93, 41, 84, 40, 15, 39, 84, 38, 253, 37, 173, 36, 160, 35, 89, 34, 227, 33, 52, 32, 199, 31, 97, 30, 95, 29, 231, 28, 52, 27, 177, 26, 41, 25, 125, 24, 137, 23, 241, 22, 166, 21, 225, 20, 118, 19, 2, 18, 54, 17, 32, 16, 82, 15, 215, 14, 175, 13, 198, 12, 43, 11, 238, 10, 235, 9, 27, 8, 101, 7, 184, 6, 127, 5, 3, 4, 5, 3, 8, 2, 163, 1, 238, 0]
         }
     
-    blockTable = (    
+    blockTable = (
         None,
         ((7, (1, (26, 19, 2))), (10, (1, (26, 16, 4))), (13, (1, (26, 13, 6))), (17, (1, (26, 9, 8)))),
         ((10, (1, (44, 34, 4))), (16, (1, (44, 28, 8))), (22, (1, (44, 22, 11))), (28, (1, (44, 16, 14)))),
@@ -521,6 +517,9 @@ class SymbolDict():
         self.taboo_dict.update(self.version_dict)
         
         self.message_dict = self.getMessageDict(messageString + codewordString)
+        
+        
+        
                 
     def getFinderDict(self):
         finderDict = {}
@@ -722,7 +721,7 @@ class SymbolDict():
         # use column index based on mod 2 for ever other row
         # start on bottom row
         # use direction indicator for up or down
-    
+
         size = self.infoSource.gridSize
         dataIndex = 0
         symbolDict = {}
@@ -756,11 +755,11 @@ class SymbolDict():
             y += direction
 
     def getFormatting(self, maskType):
-        #NOTE: I've always considered error levels to come in this order:
+        # NOTE: I've always considered error levels to come in this order:
         #        L,M,Q,H. But their binary representaiton is:
         #        'L':'01', 'M':'00', 'Q':'11', 'H':'10'
         #    I will account for that here:
-        errorLevelKey = ('01','00','11','10')
+        errorLevelKey = ('01', '00', '11', '10')
         errAndMaskString = errorLevelKey[self.infoSource.errLevel] + self.intToBinString(maskType, 3)
         bchCalc = int(errAndMaskString, 2) << 10  # add ten zeros to begin calculation
         polynomial = 0b10100110111
@@ -798,14 +797,17 @@ class SymbolGenerator():
         self.qr_grid = self.fillListFromDict(self.qr_grid, self.symbolDictSource.taboo_dict)
         self.qr_grid = self.fillListFromDict(self.qr_grid, self.symbolDictSource.message_dict)
         
-        masked = MaskSymbol(self.symbolDictSource.taboo_dict,self.qr_grid)
-        self.masked_qr_grid = masked.masked_grid
-        
-        #Get format information (this should be fun to figure out)
-        format_dict = self.symbolDictSource.getFormatDict(self.symbolDictSource.getFormatting(masked.best_mask))
-        self.masked_qr_grid = self.fillListFromDict(self.masked_qr_grid, format_dict)
+        best_score = 10000
+        for i in range(8):
+            format_dict = self.symbolDictSource.getFormatDict(self.symbolDictSource.getFormatting(i))
+            testGrid = self.fillListFromDict(self.qr_grid, format_dict)
+            masked = MaskSymbol(self.symbolDictSource.taboo_dict, testGrid, i)
+            if masked.score < best_score:
+                best_score = masked.score
+                self.masked_qr_grid = masked.masked_grid
         
         self.genQrImage(self.masked_qr_grid)
+        
    
     def getEmptyGrid(self):
         size = self.infoSource.gridSize
@@ -813,13 +815,17 @@ class SymbolGenerator():
         return grid
         
     def fillListFromDict(self, theList, theDict):
+        #Next three lines are a copy hack to makes sure list objects are copied as a new list an not just an ID
+        newList = []
+        for item in theList:
+            newList.append(list(item))
         for key in theDict.keys():
-            theList[key[1]][key[0]] = theDict[key]
-        return theList
+            newList[key[1]][key[0]] = theDict[key]
+        return newList
     
     def genQrImage(self, qrData):
     
-        #FIXME: These settings probably shouldn't be hardcoded
+        # FIXME: These settings probably shouldn't be hardcoded
         out = '/home/mike/Desktop/qr_gen_test.png'
         size = 2
         bgcolor = 0xFFFFFF
@@ -854,14 +860,23 @@ class SymbolGenerator():
     
     
 class MaskSymbol():
-    def __init__(self, tabooDict, theList):
+    def __init__(self, tabooDict, theList, maskVersion):
         self.taboo_dict = tabooDict
         self.data_list = theList
-        
-        #FIXME: This class should test out ever mask and find the best one. Right now it's just hardcoded here
-        self.best_mask = 0
-    
-        self.masked_grid = self.applyMask(self.data_list, self.taboo_dict, self.best_mask)
+        self.mask_version = maskVersion
+        '''
+        bestScore = 10000   #arbitrarily high number to start
+        for i in range(8):
+            testMask = self.applyMask(self.data_list,self.taboo_dict, i)
+            testScore = self.evaluateMask(testMask)
+            if (testScore < bestScore):
+                self.masked_grid = list(testMask)
+                self.best_mask = i
+                bestScore = testScore
+        '''
+            
+        self.masked_grid = self.applyMask(self.data_list, self.taboo_dict, self.mask_version)
+        self.score = self.evaluateMask(self.masked_grid)
         
     def applyMask(self, qrList, tabooDict, maskVersion):
         maskedList = list(qrList)
@@ -898,3 +913,111 @@ class MaskSymbol():
             else: return (value ^ 1)
         else:
             raise Exception("Mask type value is invalide (needs to between 0 and 7)")
+    
+
+    
+    
+    
+    
+    def evaluateMask(self, maskedList):
+        totalScore = 0
+        #easiset way to score columns is to make a second grid rotated 90 degrees
+        rotated = self.rotateGrid(maskedList)
+        
+        #test rows and columns for consecutive bits
+        totalScore += self.scoreRows(maskedList)
+        totalScore += self.scoreRows(rotated)
+        
+        #test for blocks of the same bits:
+        totalScore += self.scoreBlocks(maskedList)
+        
+        #test for alignment type patterns:
+        totalScore += self.scorePatterns(maskedList)
+        totalScore += self.scorePatterns(rotated)
+        
+        totalScore += self.scoreLightDarkRatio(maskedList)
+        
+        #clean up after ourselves:
+        del rotated
+        
+        logging.debug("%s:%s:totalScore: %s", self.__class__.__name__, sys._getframe().f_code.co_name, totalScore)
+        return totalScore
+    
+    def rotateGrid(self,grid):
+        rotatedGrid = []
+        for i in range(len(grid)):
+            nextRow = []
+            for j in range(len(grid)-1,-1,-1):
+                nextRow.append(grid[j][i])
+            rotatedGrid.append(nextRow)
+
+        return rotatedGrid
+    
+    def scoreRows(self,grid):
+        # score module rows
+        score = 0
+        for row in grid:
+            lastPixel = None
+            count = 0
+            for pixel in row:
+                if pixel != lastPixel:
+                    if count >= 5:
+                        score += 3 + (count - 5)
+                    lastPixel = pixel
+                    count = 1
+                else:
+                    count += 1
+            # don't forget to check score at end of each row
+            if count >= 5:
+                score += 3 + (count - 5)
+        logging.debug("%s:%s:score: %s", self.__class__.__name__, sys._getframe().f_code.co_name, score)
+        return score
+    
+    def scoreBlocks(self,grid):
+        #find all blocks that are 2x2 pixles of the same color
+        score = 0
+        for m in range(len(grid)-1):
+            for n in range(len(grid)-1):
+                pixelSum = grid[m][n] + grid[m][n+1] + grid[m+1][n] + grid[m+1][n+1]
+                if (pixelSum == 4 or pixelSum == 0):
+                    score += 3
+        logging.debug("%s:%s:score: %s", self.__class__.__name__, sys._getframe().f_code.co_name, score)
+        return score
+
+    def scorePatterns(self, grid):
+        score = 0
+        
+        pattern1 = [0,0,0,0,1,0,1,1,1,0,1]
+        pattern2 = [1,0,1,1,1,0,1,0,0,0,0]
+        
+        for row in range(len(grid)):
+            for pixel in range(len(grid)-len(pattern1)+1):                
+                if (grid[row][pixel:pixel+len(pattern1)] == pattern1 or 
+                    grid[row][pixel:pixel+len(pattern1)] == pattern2):
+                    score += 40
+                 
+        
+        logging.debug("%s:%s:score: %s", self.__class__.__name__, sys._getframe().f_code.co_name, score)
+        return score
+
+    def scoreLightDarkRatio(self, grid):
+        totalPixels = 0
+        darkPixels = 0
+
+        for row in grid:
+            for pixel in row:
+                totalPixels += 1
+                if pixel:
+                    darkPixels += 1
+                    
+        logging.debug("%s:%s:totalPixels: %s", self.__class__.__name__, sys._getframe().f_code.co_name, totalPixels)
+        logging.debug("%s:%s:darkPixels: %s", self.__class__.__name__, sys._getframe().f_code.co_name, darkPixels)
+                
+        k0 = abs(10-(((darkPixels*100)/totalPixels)/5))
+        k1 = abs(10-((((darkPixels*100)/totalPixels)/5)+1))
+        
+        if k0 < k1: score = k0*10
+        else: score = k1*10
+        
+        logging.debug("%s:%s:score: %s", self.__class__.__name__, sys._getframe().f_code.co_name, score)
+        return score

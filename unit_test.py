@@ -26,8 +26,8 @@ class TestQr(unittest.TestCase):
         '''
         
         
-        #symInf = SymbolInfo('HELLO WORLD',1,2)
-        symInf = SymbolInfo("Hello World! This is working great!")
+        symInf = SymbolInfo('Hello World!')
+        #symInf = SymbolInfo("Hello World! This is working great!")
         binary_message = BinaryMessage(symInf)      
         error_codewords = ErrorCodewords(symInf,binary_message)
         # expectedInt = 13
