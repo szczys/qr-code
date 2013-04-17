@@ -26,12 +26,12 @@ class TestQr(unittest.TestCase):
         '''
         
         
-        symInf = SymbolInfo('Hello World!')
-        #symInf = SymbolInfo("Hello World! This is working great!")
-        binary_message = BinaryMessage(symInf)      
+        symInf = SymbolInfo('http://en.m.wikipedia.org',3,2)
+        binary_message = BinaryMessage(symInf)
         error_codewords = ErrorCodewords(symInf,binary_message)
-        # expectedInt = 13
-        # self.assertEqual(error_codewords.codewordCount, expectedInt)
-        symbol_dict = SymbolDict(symInf, binary_message.binMessage, error_codewords.binCodewords)
+        message_interleave = '01000001100101111001011000000110100001110101011001000111010001100100011110010110000000110001001010100010111001101111001011110111111101100010011001010110011100001110001000000000111001101110110011010010000100011110011111101100011101100001000110010110111011001011011000010001'   
+        self.assertEqual(error_codewords.bin_interleave_message, message_interleave)
+        
+        symbol_dict = SymbolDict(symInf, error_codewords.bin_interleave_message, error_codewords.bin_interleave_ec)
         SymbolGenerator(symInf, binary_message, error_codewords, symbol_dict)
         

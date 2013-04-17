@@ -141,8 +141,9 @@ class SymbolInfo:
             (),  # ECI - Not Implemented yet
             (string.digits),  # Numeric
             (string.digits + string.uppercase + ' $%*+-./:'),  # Alphanumeric
-            (string.punctuation.replace('\\', '') + string.digits + string.lowercase + string.uppercase + ' '
-             # '\xef\xbd\xa1', '\xef\xbd\xa2', '\xef\xbd\xa3', '\xef\xbd\xa4', '\xef\xbd\xa5', '\xef\xbd\xa6', '\xef\xbd\xa7', '\xef\xbd\xa8', '\xef\xbd\xa9', '\xef\xbd\xaa', '\xef\xbd\xab', '\xef\xbd\xac', '\xef\xbd\xad', '\xef\xbd\xae', '\xef\xbd\xaf', '\xef\xbd\xb0', '\xef\xbd\xb1', '\xef\xbd\xb2', '\xef\xbd\xb3', '\xef\xbd\xb4', '\xef\xbd\xb5', '\xef\xbd\xb6', '\xef\xbd\xb7', '\xef\xbd\xb8', '\xef\xbd\xb9', '\xef\xbd\xba', '\xef\xbd\xbb', '\xef\xbd\xbc', '\xef\xbd\xbd', '\xef\xbd\xbe', '\xef\xbd\xbf', '\xef\xbe\x80', '\xef\xbe\x81', '\xef\xbe\x82', '\xef\xbe\x83', '\xef\xbe\x84', '\xef\xbe\x85', '\xef\xbe\x86', '\xef\xbe\x87', '\xef\xbe\x88', '\xef\xbe\x89', '\xef\xbe\x8a', '\xef\xbe\x8b', '\xef\xbe\x8c', '\xef\xbe\x8d', '\xef\xbe\x8e', '\xef\xbe\x8f', '\xef\xbe\x90', '\xef\xbe\x91', '\xef\xbe\x92', '\xef\xbe\x93', '\xef\xbe\x94', '\xef\xbe\x95', '\xef\xbe\x96', '\xef\xbe\x97', '\xef\xbe\x98', '\xef\xbe\x99', '\xef\xbe\x9a', '\xef\xbe\x9b', '\xef\xbe\x9c', '\xef\xbe\x9d', '\xef\xbe\x9e', '\xef\xbe\x9f'
+            # (string.punctuation.replace('\\', '') + string.digits + string.lowercase + string.uppercase + ' '
+            # FIXME: Not sure how to handle ISO-8859-1 character set. The following string is a hack:
+            ('\x00\x01\x02\x03\x04\x05\x06\x07\x08\t\n\x0b\x0c\r\x0e\x0f\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f !"#$%&\'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~\x7f\x80\x81\x82\x83\x84\x85\x86\x87\x88\x89\x8a\x8b\x8c\x8d\x8e\x8f\x90\x91\x92\x93\x94\x95\x96\x97\x98\x99\x9a\x9b\x9c\x9d\x9e\x9f\xa0\xa1\xa2\xa3\xa4\xa5\xa6\xa7\xa8\xa9\xaa\xab\xac\xad\xae\xaf\xb0\xb1\xb2\xb3\xb4\xb5\xb6\xb7\xb8\xb9\xba\xbb\xbc\xbd\xbe\xbf\xc0\xc1\xc2\xc3\xc4\xc5\xc6\xc7\xc8\xc9\xca\xcb\xcc\xcd\xce\xcf\xd0\xd1\xd2\xd3\xd4\xd5\xd6\xd7\xd8\xd9\xda\xdb\xdc\xdd\xde\xdf\xe0\xe1\xe2\xe3\xe4\xe5\xe6\xe7\xe8\xe9\xea\xeb\xec\xed\xee\xef\xf0\xf1\xf2\xf3\xf4\xf5\xf6\xf7\xf8\xf9\xfa\xfb\xfc\xfd\xfe\xff'
              ),  # 8-bit Byte
             (),  # Kanji - Not Implemented yet
             (),  # Structured Append - Not Implemented yet
@@ -407,35 +408,82 @@ class ErrorCodewords():
     def __init__(self, symInf, binMess):
         self.infoSource = symInf
         self.binMessageSource = binMess
-        self.messageWords = self.binStringToIntList(self.binMessageSource.binMessage)
+        #self.messageWords = self.binStringToIntList(self.binMessageSource.binMessage)
 
+        # This command sets self.codewordCount and self.blockLegend
         self.getBlockData()
         
-        self.codewords = self.generateCodewords()
-        self.binCodewords = self.intListToBinString(self.codewords)
+        # get a list of binary message formatted according to self.blockLegend
+        data_blocks = []
+        tempMessage = self.binMessageSource.binMessage
+        for count in self.block_legend:
+            data_blocks.append(tempMessage[:8 * count])
+            tempMessage = tempMessage[8 * count:]
+        del tempMessage
         
-    def generateCodewords(self):
-        messageLen = len(self.messageWords)
+        # submit each data block one at a time to generate blocks of error correcting codewords
+        ec_blocks = []
+        for data in data_blocks:
+            ec_blocks.append(self.generateCodewords(data, self.codewordCount / len(self.block_legend)))
+            
+        # interleave the data codewords
+        # Find the inner list with the most words:
+        most_data_words = 0
+        for block in data_blocks:
+            if (len(block)/8 > most_data_words):
+                most_data_words = len(block)/8
+        # Iterate blocks, interleaving as we go
+        self.bin_interleave_message = ''
+        for i in range(most_data_words):
+            for block in data_blocks:
+                if (i*8 < len(block)):
+                    # This conditional should handle shorter blocks in the collection
+                    self.bin_interleave_message += block[i*8:(i*8)+8]
+        logging.debug("%s:%s:bin_interleave_message: %s", self.__class__.__name__, sys._getframe().f_code.co_name, self.bin_interleave_message)
+
+        
+        
+        # interleave the ec codewords 
+        # Find the inner list with the most words:
+        most_data_words = 0
+        for block in ec_blocks:
+            if (len(block) > most_data_words):
+                most_data_words = len(block)
+        # Iterate blocks, interleaving as we go
+        ec_interleave = []
+        for i in range(most_data_words):
+            for block in ec_blocks:
+                if (i < len(block)):
+                    # This conditional should handle shorter blocks in the collection
+                    ec_interleave.append(block[i])
+
+        self.bin_interleave_ec = self.intListToBinString(ec_interleave)
+        
+        logging.debug("%s:%s:bin_interleave_ec: %s", self.__class__.__name__, sys._getframe().f_code.co_name, self.bin_interleave_ec)
+        
+    def generateCodewords(self, binary_message, codewords_needed):
+        data_words = self.binStringToIntList(binary_message)
+        message_len = len(data_words)
         # set the message up for the operation by making firstTerm list
         firstTerm = []
-        for word in self.messageWords:
+        for word in data_words:
             firstTerm.append(word)
-            firstTerm.append(messageLen - 1)
-            messageLen = messageLen - 1
+            firstTerm.append(message_len - 1)
+            message_len -= 1
     
         # multiply the firstTerm by the number of codewords needed
         for index in range(len(firstTerm)):
             if (index % 2):
-                firstTerm[index] = firstTerm[index] + self.codewordCount
+                firstTerm[index] = firstTerm[index] + codewords_needed
     
         # set up a counter for the correct number of divisions:
-        divCount = len(self.messageWords)
+        divCount = len(data_words)
     
         # loop:
         while divCount:
     
             # set up the polynomial to match the x powers of the message
-            poly = list(self.polyDict[self.codewordCount])
+            poly = list(self.polyDict[codewords_needed])
             powerTest = firstTerm[1] - poly[1]
             if powerTest:
                 for index in range(len(poly)):
@@ -473,16 +521,32 @@ class ErrorCodewords():
             # decrement our function count
             divCount = divCount - 1
     
-        codeWords = []
+        ec_words = []
         for item in range(len(firstTerm)):
             if (item % 2 == 0):
-                codeWords.append(firstTerm[item])
-        logging.debug("%s:%s:codeWords: %s", self.__class__.__name__, sys._getframe().f_code.co_name, codeWords)
-        return codeWords
+                ec_words.append(firstTerm[item])
+        logging.debug("%s:%s:data_words: %s", self.__class__.__name__, sys._getframe().f_code.co_name, data_words)
+        logging.debug("%s:%s:ec_words: %s", self.__class__.__name__, sys._getframe().f_code.co_name, ec_words)
+        return ec_words
     
     def getBlockData(self):
         # FIXME: Need to implement handling of multiple blocks and interleaving
-        self.codewordCount = self.blockTable[self.infoSource.qrVersion][self.infoSource.errLevel][0]
+        # self.codewordCount = self.blockTable[self.infoSource.qrVersion][self.infoSource.errLevel][0]
+        
+        self.block_legend = []
+        for i in range(len(self.blockTable[self.infoSource.qrVersion][self.infoSource.errLevel])):
+            if i == 0:
+                self.codewordCount = self.blockTable[self.infoSource.qrVersion][self.infoSource.errLevel][i]
+            else:
+                blocks_of_cur_type = self.blockTable[self.infoSource.qrVersion][self.infoSource.errLevel][i][0]
+                cur_block_datawords = self.blockTable[self.infoSource.qrVersion][self.infoSource.errLevel][i][1][1]
+                while(blocks_of_cur_type):
+                    self.block_legend.append(cur_block_datawords)
+                    blocks_of_cur_type -= 1
+                
+        logging.debug("%s:%s:codewordCount: %s", self.__class__.__name__, sys._getframe().f_code.co_name, self.codewordCount)
+        logging.debug("%s:%s:block_legend: %s", self.__class__.__name__, sys._getframe().f_code.co_name, self.block_legend)
+
     
     def binStringToIntList(self, inString):
         intList = []
@@ -815,7 +879,7 @@ class SymbolGenerator():
         return grid
         
     def fillListFromDict(self, theList, theDict):
-        #Next three lines are a copy hack to makes sure list objects are copied as a new list an not just an ID
+        # Next three lines are a copy hack to makes sure list objects are copied as a new list an not just an ID
         newList = []
         for item in theList:
             newList.append(list(item))
@@ -863,18 +927,7 @@ class MaskSymbol():
     def __init__(self, tabooDict, theList, maskVersion):
         self.taboo_dict = tabooDict
         self.data_list = theList
-        self.mask_version = maskVersion
-        '''
-        bestScore = 10000   #arbitrarily high number to start
-        for i in range(8):
-            testMask = self.applyMask(self.data_list,self.taboo_dict, i)
-            testScore = self.evaluateMask(testMask)
-            if (testScore < bestScore):
-                self.masked_grid = list(testMask)
-                self.best_mask = i
-                bestScore = testScore
-        '''
-            
+        self.mask_version = maskVersion            
         self.masked_grid = self.applyMask(self.data_list, self.taboo_dict, self.mask_version)
         self.score = self.evaluateMask(self.masked_grid)
         
@@ -921,39 +974,39 @@ class MaskSymbol():
     
     def evaluateMask(self, maskedList):
         totalScore = 0
-        #easiset way to score columns is to make a second grid rotated 90 degrees
+        # easiset way to score columns is to make a second grid rotated 90 degrees
         rotated = self.rotateGrid(maskedList)
         
-        #test rows and columns for consecutive bits
+        # test rows and columns for consecutive bits
         totalScore += self.scoreRows(maskedList)
         totalScore += self.scoreRows(rotated)
         
-        #test for blocks of the same bits:
+        # test for blocks of the same bits:
         totalScore += self.scoreBlocks(maskedList)
         
-        #test for alignment type patterns:
+        # test for alignment type patterns:
         totalScore += self.scorePatterns(maskedList)
         totalScore += self.scorePatterns(rotated)
         
         totalScore += self.scoreLightDarkRatio(maskedList)
         
-        #clean up after ourselves:
+        # clean up after ourselves:
         del rotated
         
         logging.debug("%s:%s:totalScore: %s", self.__class__.__name__, sys._getframe().f_code.co_name, totalScore)
         return totalScore
     
-    def rotateGrid(self,grid):
+    def rotateGrid(self, grid):
         rotatedGrid = []
         for i in range(len(grid)):
             nextRow = []
-            for j in range(len(grid)-1,-1,-1):
+            for j in range(len(grid) - 1, -1, -1):
                 nextRow.append(grid[j][i])
             rotatedGrid.append(nextRow)
 
         return rotatedGrid
     
-    def scoreRows(self,grid):
+    def scoreRows(self, grid):
         # score module rows
         score = 0
         for row in grid:
@@ -973,12 +1026,12 @@ class MaskSymbol():
         logging.debug("%s:%s:score: %s", self.__class__.__name__, sys._getframe().f_code.co_name, score)
         return score
     
-    def scoreBlocks(self,grid):
-        #find all blocks that are 2x2 pixles of the same color
+    def scoreBlocks(self, grid):
+        # find all blocks that are 2x2 pixles of the same color
         score = 0
-        for m in range(len(grid)-1):
-            for n in range(len(grid)-1):
-                pixelSum = grid[m][n] + grid[m][n+1] + grid[m+1][n] + grid[m+1][n+1]
+        for m in range(len(grid) - 1):
+            for n in range(len(grid) - 1):
+                pixelSum = grid[m][n] + grid[m][n + 1] + grid[m + 1][n] + grid[m + 1][n + 1]
                 if (pixelSum == 4 or pixelSum == 0):
                     score += 3
         logging.debug("%s:%s:score: %s", self.__class__.__name__, sys._getframe().f_code.co_name, score)
@@ -987,13 +1040,13 @@ class MaskSymbol():
     def scorePatterns(self, grid):
         score = 0
         
-        pattern1 = [0,0,0,0,1,0,1,1,1,0,1]
-        pattern2 = [1,0,1,1,1,0,1,0,0,0,0]
+        pattern1 = [0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1]
+        pattern2 = [1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0]
         
         for row in range(len(grid)):
-            for pixel in range(len(grid)-len(pattern1)+1):                
-                if (grid[row][pixel:pixel+len(pattern1)] == pattern1 or 
-                    grid[row][pixel:pixel+len(pattern1)] == pattern2):
+            for pixel in range(len(grid) - len(pattern1) + 1):                
+                if (grid[row][pixel:pixel + len(pattern1)] == pattern1 or 
+                    grid[row][pixel:pixel + len(pattern1)] == pattern2):
                     score += 40
                  
         
@@ -1013,11 +1066,11 @@ class MaskSymbol():
         logging.debug("%s:%s:totalPixels: %s", self.__class__.__name__, sys._getframe().f_code.co_name, totalPixels)
         logging.debug("%s:%s:darkPixels: %s", self.__class__.__name__, sys._getframe().f_code.co_name, darkPixels)
                 
-        k0 = abs(10-(((darkPixels*100)/totalPixels)/5))
-        k1 = abs(10-((((darkPixels*100)/totalPixels)/5)+1))
+        k0 = abs(10 - (((darkPixels * 100) / totalPixels) / 5))
+        k1 = abs(10 - ((((darkPixels * 100) / totalPixels) / 5) + 1))
         
-        if k0 < k1: score = k0*10
-        else: score = k1*10
+        if k0 < k1: score = k0 * 10
+        else: score = k1 * 10
         
         logging.debug("%s:%s:score: %s", self.__class__.__name__, sys._getframe().f_code.co_name, score)
         return score
